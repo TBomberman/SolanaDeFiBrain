@@ -3,12 +3,20 @@ from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 import os
 import asyncio
+import sys
 
 # --- Configuration ---
 SOLANA_RPC_URL = "https://api.devnet.solana.com" # Using devnet for POC
-# AGENTWALLET_API_TOKEN and AGENTWALLET_USERNAME would be loaded securely from memory/hackathon_colosseum.md
-# For POC, we will mock AgentWallet interactions.
 
+# --- Logging Setup ---
+LOG_FILE = "demo.log"
+
+def setup_logging():
+    """Redirects stdout to a log file."""
+    sys.stdout = open(LOG_FILE, "w", buffering=1) # Line-buffered
+    sys.stderr = sys.stdout # Also redirect stderr to the same file
+
+# --- AgentWallet Mock ---
 class AgentWalletMock:
     """A mock class for AgentWallet interactions."""
     def __init__(self):
@@ -19,7 +27,6 @@ class AgentWalletMock:
 
     async def sign_transaction(self, transaction):
         print(f"Mocking transaction signing for: {transaction}")
-        # In a real scenario, this would interact with the AgentWallet API
         return {"signature": "MOCKED_SIGNATURE_FOR_" + str(transaction)[:10], "status": "success"}
 
 # Initialize mock AgentWallet
@@ -28,19 +35,24 @@ agent_wallet = AgentWalletMock()
 # --- Solana Connection Setup ---
 def get_solana_client():
     """Establishes and returns a Solana RPC client."""
+    print("Initializing Solana client...")
     return Client(SOLANA_RPC_URL)
 
 async def get_account_info(public_key_str: str):
     """Fetches and returns basic account information for a given public key."""
+    print(f"Attempting to get account info for {public_key_str}...")
     client = get_solana_client()
     try:
         public_key = Pubkey.from_string(public_key_str)
+        print(f"Calling client.get_account_info_json_parsed for {public_key_str}...")
         response = client.get_account_info_json_parsed(public_key)
+        print(f"client.get_account_info_json_parsed returned.")
         if response.value:
             print(f"Account Info for {public_key_str}:")
             print(f"  Balance: {response.value.lamports / 1e9} SOL")
             print(f"  Executable: {response.value.executable}")
             print(f"  Owner: {response.value.owner}")
+            print(f"Successfully retrieved account info for {public_key_str}.")
             return response.value
         else:
             print(f"Account {public_key_str} not found.")
@@ -57,7 +69,6 @@ async def analyze_portfolio(solana_address: str):
     For POC: Returns mock portfolio data.
     """
     print(f"Analyzing portfolio for {solana_address}...")
-    # In a real scenario, this would query various DeFi protocols
     mock_portfolio = {
         "address": solana_address,
         "assets": [
@@ -66,7 +77,7 @@ async def analyze_portfolio(solana_address: str):
             {"token": "RAY", "amount": 10, "value_usd": 15},
         ],
         "total_value_usd": 165,
-        "risk_tolerance": "medium" # This would come from user config or analysis
+        "risk_tolerance": "medium"
     }
     await asyncio.sleep(1) # Simulate async operation
     return mock_portfolio
@@ -77,7 +88,6 @@ async def monitor_market_conditions():
     For POC: Returns mock market data.
     """
     print("Monitoring market conditions...")
-    # In a real scenario, this would fetch real-time data from Jupiter, Raydium, Kamino, etc.
     mock_market_data = {
         "jupiter": {"SOL/USDC_LP_APR": "8%", "RAY/USDC_LP_APR": "12%"},
         "raydium": {"SOL_Lending_APY": "4%", "USDC_Lending_APY": "6%"},
@@ -94,7 +104,6 @@ async def generate_strategy(portfolio: dict, market_data: dict):
     For POC: Returns a simple mock strategy.
     """
     print("Generating strategy...")
-    # In a real scenario, this would involve complex optimization algorithms
     suggested_strategy = {
         "action": "Yield Farming",
         "protocol": "Jupiter",
@@ -113,7 +122,6 @@ async def execute_on_chain(strategy: dict, solana_address: str):
     For POC: Mocks transaction creation and signing.
     """
     print(f"Executing on-chain strategy for {solana_address}: {strategy['action']} on {strategy['protocol']} with {strategy['amount_usd']}$ in {strategy['pair']}...")
-    # In a real scenario, this would build and send a real Solana transaction
     mock_transaction = {
         "type": strategy["action"],
         "protocol": strategy["protocol"],
@@ -122,10 +130,7 @@ async def execute_on_chain(strategy: dict, solana_address: str):
         "to": "DeFi_Program_Address_Mock"
     }
 
-    # Simulate user permission (manual step in POC)
     print("Awaiting user permission to execute strategy...")
-    # For a real agent, this would be an explicit prompt to the user or an auto-approval setting.
-    # For this POC, we'll assume permission is granted.
     permission_granted = True
 
     if permission_granted:
@@ -145,7 +150,7 @@ async def main_loop():
 
     # 1. Get AgentWallet Solana Address
     solana_address = await agent_wallet.get_solana_address()
-    print(f"AgentWallet Solana Address: {solana_address}")
+    print(f"Retrieved mock Solana Address: {solana_address}")
     await get_account_info(solana_address)
 
     while True:
@@ -167,7 +172,10 @@ async def main_loop():
         print(f"Strategy Execution Result: {execution_result}")
 
         print("Waiting for next cycle (e.g., 5 minutes in a real scenario)...")
-        await asyncio.sleep(10) # Shorter interval for POC demonstration
+        await asyncio.sleep(3) # Shorter interval for POC demonstration to show more cycles quickly
 
 if __name__ == "__main__":
+    setup_logging() # Redirect output to file
+    print("Script starting...")
     asyncio.run(main_loop())
+    print("Script finished.")
